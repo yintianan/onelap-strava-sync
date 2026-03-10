@@ -19,6 +19,17 @@ from sync_onelap_strava.sync_engine import SyncEngine
 
 def build_default_engine():
     settings = load_settings(cli_since=None)
+    required_settings = {
+        "ONELAP_USERNAME": settings.onelap_username,
+        "ONELAP_PASSWORD": settings.onelap_password,
+        "STRAVA_CLIENT_ID": settings.strava_client_id,
+        "STRAVA_CLIENT_SECRET": settings.strava_client_secret,
+        "STRAVA_REFRESH_TOKEN": settings.strava_refresh_token,
+    }
+    missing = [key for key, value in required_settings.items() if not value]
+    if missing:
+        raise ValueError(f"missing required settings: {', '.join(missing)}")
+
     onelap = OneLapClient(
         base_url="https://www.onelap.cn",
         username=settings.onelap_username or "",
@@ -49,9 +60,15 @@ def run_cli(argv=None, engine=None, log_file: Path | str = "logs/sync.log"):
     args = parser.parse_args(argv)
 
     logger = configure_logging(log_file)
-    since_value = date.fromisoformat(args.since) if args.since else None
-    app = engine or build_default_engine()
-    summary = app.run_once(since_date=since_value)
+    try:
+        since_value = date.fromisoformat(args.since) if args.since else None
+        app = engine or build_default_engine()
+        summary = app.run_once(since_date=since_value)
+    except Exception as exc:
+        logger.error("fatal error: %s", exc)
+        print(f"fatal: {exc}")
+        return 1
+
     logger.info("summary success=%s failed=%s", summary.success, summary.failed)
     print(
         f"fetched {summary.fetched} -> deduped {summary.deduped} -> success {summary.success} -> failed {summary.failed}"
