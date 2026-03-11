@@ -81,10 +81,13 @@ def run_download_only(since_value):
     downloaded = 0
     failed = 0
     for item in items:
+        filename = f"{item.activity_id}.fit"
         try:
             onelap.download_fit(item.activity_id, Path("downloads"))
+            print(f"{item.start_time}  {filename}")
             downloaded += 1
-        except Exception:
+        except Exception as exc:
+            print(f"{item.start_time}  {filename}  FAILED: {exc}")
             failed += 1
 
     print(
