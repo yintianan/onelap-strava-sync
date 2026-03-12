@@ -10,11 +10,13 @@ def test_download_only_mode_does_not_require_strava_settings(monkeypatch, tmp_pa
             class Item:
                 activity_id = "a1"
                 start_time = "2026-03-09T08:00:00Z"
+                record_key = "rk-a1"
+                source_filename = "source-a1.fit"
 
             return [Item()]
 
-        def download_fit(self, activity_id, output_dir):
-            p = tmp_path / f"{activity_id}.fit"
+        def download_fit(self, record_key, output_dir):
+            p = tmp_path / "source-a1.fit"
             p.write_bytes(b"fit")
             return p
 
@@ -37,21 +39,24 @@ def test_download_only_prints_one_line_per_fit_with_time_and_filename(
     monkeypatch.setenv("ONELAP_PASSWORD", "p")
 
     class Item:
-        def __init__(self, activity_id, start_time):
+        def __init__(self, activity_id, start_time, record_key, source_filename):
             self.activity_id = activity_id
             self.start_time = start_time
+            self.record_key = record_key
+            self.source_filename = source_filename
 
     class FakeOneLapClient:
         def list_fit_activities(self, since, limit):
             return [
-                Item("a1", "2026-03-08T08:00:00Z"),
-                Item("a2", "2026-03-09T08:00:00Z"),
+                Item("a1", "2026-03-08T08:00:00Z", "rk-a1", "MAGENE_A.fit"),
+                Item("a2", "2026-03-09T08:00:00Z", "rk-a2", "MAGENE_B.fit"),
             ]
 
-        def download_fit(self, activity_id, output_dir):
+        def download_fit(self, record_key, output_dir):
             from pathlib import Path
 
-            p = Path(output_dir) / f"{activity_id}.fit"
+            filename = "MAGENE_A.fit" if record_key == "rk-a1" else "MAGENE_B.fit"
+            p = Path(output_dir) / filename
             p.parent.mkdir(parents=True, exist_ok=True)
             p.write_bytes(b"fit")
             return p
@@ -68,8 +73,8 @@ def test_download_only_prints_one_line_per_fit_with_time_and_filename(
     out = capsys.readouterr().out
 
     assert code == 0
-    assert "2026-03-08T08:00:00Z  a1.fit" in out
-    assert "2026-03-09T08:00:00Z  a2.fit" in out
+    assert "2026-03-08T08:00:00Z  MAGENE_A.fit" in out
+    assert "2026-03-09T08:00:00Z  MAGENE_B.fit" in out
     assert "download-only fetched 2 -> downloaded 2 -> failed 0" in out
 
 
@@ -78,15 +83,17 @@ def test_download_only_prints_failed_line_for_item_errors(monkeypatch, capsys):
     monkeypatch.setenv("ONELAP_PASSWORD", "p")
 
     class Item:
-        def __init__(self, activity_id, start_time):
+        def __init__(self, activity_id, start_time, record_key, source_filename):
             self.activity_id = activity_id
             self.start_time = start_time
+            self.record_key = record_key
+            self.source_filename = source_filename
 
     class FakeOneLapClient:
         def list_fit_activities(self, since, limit):
-            return [Item("a1", "2026-03-08T08:00:00Z")]
+            return [Item("a1", "2026-03-08T08:00:00Z", "rk-a1", "MAGENE_A.fit")]
 
-        def download_fit(self, activity_id, output_dir):
+        def download_fit(self, record_key, output_dir):
             raise RuntimeError("disk full")
 
     import run_sync
@@ -101,7 +108,7 @@ def test_download_only_prints_failed_line_for_item_errors(monkeypatch, capsys):
     out = capsys.readouterr().out
 
     assert code == 0
-    assert "2026-03-08T08:00:00Z  a1.fit  FAILED: disk full" in out
+    assert "2026-03-08T08:00:00Z  MAGENE_A.fit  FAILED: disk full" in out
     assert "download-only fetched 1 -> downloaded 0 -> failed 1" in out
 
 
