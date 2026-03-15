@@ -1,5 +1,7 @@
 # OneLap to Strava Sync
 
+[简体中文](README.zh.md)
+
 Local one-command Python tool to export FIT files from OneLap and incrementally upload to Strava.
 
 This project runs with direct OneLap HTTP + Strava HTTP adapters.
