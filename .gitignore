@@ -3,3 +3,6 @@ __pycache__/
 logs/
 downloads/
 *.egg-info/
+.env
+output.txt
+state.json
